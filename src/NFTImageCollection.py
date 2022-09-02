@@ -10,13 +10,14 @@ from pathlib import Path
 
 
 # Contains the necessary data and functions
-class NFTCollection:
+class NFTImageCollection:
     # Number used to increase the RGB value for each RGB iteration
-    RGB_STEP = 64
+    RGB_STEP = 127  # With 127 We get 3 values: 0, 128, 254 --> 3 ^ 3 = 27 combs of colour
+    DEFAULT_INPUT = (253, 253, 253)
 
     # Generate the list of trait names from the names of the folder inside self.DATA_FOLDER_PATH and initializes
     # NFTCollection object
-    def __init__(self):
+    def __init__(self, trait_folder_names):
         # Obtain absolute path location
         # This return absolute path to the file we are running
         self.BASE_PATH = str(Path(os.path.realpath(__file__)).parent.parent)
@@ -26,7 +27,10 @@ class NFTCollection:
         self.OUTPUT_FOLDER_PATH = os.path.join(self.BASE_PATH, "out")
 
         # Initialize data
-        self.traitNameList = os.listdir(self.DATA_FOLDER_PATH)
+        if trait_folder_names is None:
+            self.traitNameList = os.listdir(self.DATA_FOLDER_PATH)
+        else:
+            self.traitNameList = trait_folder_names
         self.traitFilesVariationsDictionary = {}
 
         # Generate output file structure
@@ -48,7 +52,8 @@ class NFTCollection:
             for r in range(0, 256, self.RGB_STEP):
                 for g in range(0, 256, self.RGB_STEP):
                     for b in range(0, 256, self.RGB_STEP):
-                        current_image = CustomImage.change_color_static(current_trivial_trait_image, (255, 255, 255), (r, g, b, 0))
+                        print("Variating trait " + str(traitName) + " with RGB code (" + str(r)+ ", " + str(g) + ", " + str(b) + ")")
+                        current_image = CustomImage.change_color_static(current_trivial_trait_image, self.DEFAULT_INPUT, (r, g, b))
                         file_path = os.path.join(self.TEMPORAL_FOLDER_PATH, traitName, str(r) + "_" + str(g) + "_" + str(b) + ".png")
                         self.traitFilesVariationsDictionary[traitName].append([file_path, 1])
                         current_image.save_image(file_path)
@@ -83,12 +88,11 @@ class NFTCollection:
         while index_iterator.has_next():
             current_images = []
             name = str(num_variations) + "_"
-            print("\nVariation " + str(num_variations) + ":")
+            print("\nVariation " + str(num_variations) + " using combination of varying traits " + str(index_iterator))
             for traitName in self.traitFilesVariationsDictionary.keys():
                 print(self.traitFilesVariationsDictionary[traitName][index_iterator.currentValues[traitName]][0])
                 name += traitName + "_" + self.traitFilesVariationsDictionary[traitName][index_iterator.currentValues[traitName]][0].split("/")[-1].split(".")[0] + "__"
                 current_images.append(self.traitFilesVariationsDictionary[traitName][index_iterator.currentValues[traitName]][0])
-            print(index_iterator)
 
             CustomImage.do_composite_static(current_images).save_image(os.path.join(self.OUTPUT_FOLDER_PATH, name + ".png"))
             index_iterator.next()
@@ -97,7 +101,6 @@ class NFTCollection:
     def generate_weighted_variations(self, num):
         counter = 1
         while counter <= num:
-            print("\nVariation " + str(counter))
             current_images = []
             name = ""
             for key in self.traitFilesVariationsDictionary.keys():
@@ -106,16 +109,36 @@ class NFTCollection:
                     current_weights.append(traitVariation[1])
 
                 chosen_path = random.choices(self.traitFilesVariationsDictionary[key], current_weights)[0][0]
-                print(key + ": " + chosen_path.split("/")[-1].split(".")[0])
                 name += key + "_" + chosen_path.split("/")[-1].split(".")[0] + "__"
                 current_images.append(chosen_path)
 
+            print("Variation " + str(counter) + ": " + str(name))
             CustomImage.do_composite_static(current_images).save_image(os.path.join(self.OUTPUT_FOLDER_PATH, name + ".png"))
             counter += 1
 
 
+def generate_rgb_repeat_variations():
+    nftCollection = NFTImageCollection(['background', 'eye', 'skin', 'mouth', 'tie', 'skeleton'])
+    nftCollection.generate_trait_files_rgb()  # NFTCollection.generate_trait_files_trivial()
+    nftCollection.compute_relative_probability()
+    nftCollection.generate_repeat_variations()
+
+
+def generate_weighted_combinations(num_variations):
+    nftCollection = NFTImageCollection(['background', 'eye', 'skin', 'mouth', 'tie', 'skeleton'])
+    nftCollection.generate_trait_files_trivial()
+    nftCollection.compute_relative_probability()
+    nftCollection.generate_weighted_variations(num_variations)
+
+
+def generate_rgb_weighted_variations(num_variations):
+    nftCollection = NFTImageCollection(['background', 'eye', 'skin', 'mouth', 'tie', 'skeleton'])
+    nftCollection.generate_trait_files_rgb()
+    nftCollection.compute_relative_probability()
+    nftCollection.generate_weighted_variations(num_variations)
+
+
 if __name__ == '__main__':
-    NFTCollection = NFTCollection()
-    NFTCollection.generate_trait_files_trivial()  # NFTCollection.generate_trait_files_rgb()
-    NFTCollection.compute_relative_probability()
-    NFTCollection.generate_weighted_variations(100)  # NFTCollection.generate_repeat_variations()
+    # generate_rgb_repeat_variations()
+    # generate_weighted_combinations(100)
+    generate_rgb_weighted_variations(100)
